@@ -1,29 +1,79 @@
 
 [@@@landmark "auto"]
 
-let rec remove_if_exists literal = function
-  | [] -> []
-  | l :: ls -> if (l == literal) then ls else l :: remove_if_exists literal ls
+let remove_if_exists literal clause =
+  let rec remove_if_exists l cl acc =
+    match cl with
+    | [] -> List.rev acc
+    | l' :: cl' ->
+      if l = l' then (List.rev acc) @ cl'
+      else remove_if_exists l cl' (l' :: acc)
+  in
+  remove_if_exists literal clause []
 
-let rec assign_literal literal = function
-  | [] -> []
-  | [] :: clauses -> assign_literal literal clauses
-  | c :: clauses ->
-    if (List.mem literal c) then assign_literal literal clauses
-    else (match remove_if_exists (-literal) c with
+let assign_literal literal clauses =
+  let rec assign_literal l cls acc =
+    match cls with
+    | [] -> List.rev acc
+    | [] :: cls' -> assign_literal l cls' acc
+    | cl :: cls' ->
+      if (List.mem l cl) then assign_literal l cls' acc
+      else
+        match remove_if_exists (-l) cl with
         | [] -> [[0]]
-        | clause -> clause :: assign_literal literal clauses)
+        | cl' -> assign_literal l cls' (cl' :: acc)
+  in
+  assign_literal literal clauses []
 
-let rec is_satisfiable literals = function
-  | [] -> true
-  | clauses ->
-    if List.mem [0] clauses then false else
-      (match literals with
-       | [] -> print_endline "failure"; false
-       | literal :: ls -> 
-         is_satisfiable ls (assign_literal literal clauses) || 
-         is_satisfiable ls (assign_literal (-literal) clauses)
-      )
+let rec rest_of_literals acc literals =
+  match acc, literals with
+  | [], _ -> literals
+  | h :: t, [] -> []
+  | h :: t, h1 :: t1 -> rest_of_literals t t1
+  
+let is_satisfiable literals clauses =
+  let rec is_satisfiable ls cls acc1 acc2 =
+    match cls with
+    | [] -> true
+    | _ ->
+     (* let () = print_string "acc1\n" in
+      let () = List.iter (fun x -> Printf.printf "%d " x) acc1
+      in
+      let () = print_newline() in
+      let () = print_string "acc2\n" in
+      let () = List.iter (fun u -> (List.iter (fun x ->
+          List.iter (fun y -> Printf.printf "%d " y) x;
+          print_newline()
+        ) u)) acc2
+      in
+      let () = print_string "clauses\n" in
+      let () = List.iter ( fun x ->
+          List.iter (fun y -> Printf.printf "%d " y) x;
+        print_newline()) cls
+        in*)
+      if List.mem [0] cls then
+        ( match acc1, acc2 with
+          | [], _ -> print_endline "failure 1"; false
+          | a :: acc1', a2 :: acc2' ->
+            let rls = rest_of_literals acc1 literals in
+            let cls' = assign_literal a a2 in
+            is_satisfiable rls cls' acc1' acc2'
+          | _, _ -> print_endline "failure 2"; false
+        )
+      else
+        (match ls with
+         | [] -> (match acc1, acc2 with
+             | [], _ -> print_endline "failure"; false
+             | a :: acc1', a2 :: acc2' ->
+               let rls = rest_of_literals acc1 literals in
+               let cls' = assign_literal a a2 in
+               is_satisfiable rls cls' acc1' acc2'
+             | _, _ -> print_endline "failure"; false)
+         | l :: ls' ->
+           let cls' = assign_literal l cls in
+           is_satisfiable ls' cls' (-l :: acc1) (cls :: acc2))
+  in
+  is_satisfiable literals clauses [] []
 
 let rec add r = function
   | [] -> r
